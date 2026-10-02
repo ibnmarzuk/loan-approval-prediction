@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Loan Approval — Day 22</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink:#121826; --navy:#0A2440; --teal:#2BBBAD; --cream:#F4F1E8; --line:#E4E0D6; --muted:#5A606C; --red:#C0392B; --green:#1E8449; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Inter, system-ui, sans-serif; background:#0e1116; color:var(--ink); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 22px 48px; }
+  header { display:flex; justify-content:space-between; align-items:flex-end; color:#fff; margin-bottom: 22px; }
+  .kicker { color: var(--teal); letter-spacing:.14em; font-size:12px; font-weight:700; }
+  h1 { margin:6px 0 0; font-size: 32px; font-weight:800; letter-spacing:-.03em; }
+  .sub { color:#9aa3af; font-size:14px; margin-top:6px; }
+  .grid { display:grid; grid-template-columns: 1.15fr .85fr; gap:18px; }
+  .card { background: var(--cream); border-radius: 16px; padding: 22px; }
+  .card h2 { margin:0 0 14px; font-size:15px; letter-spacing:.04em; text-transform:uppercase; color:var(--navy); }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin: 10px 0 4px; }
+  input, select { width:100%; border:1px solid #d7d2c6; background:#fff; border-radius:8px; padding:10px 12px; font: inherit; font-size:14px; color:var(--ink); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cases { display:flex; flex-wrap:wrap; gap:8px; margin-bottom: 8px; }
+  button.case, button.go { border:0; border-radius:999px; padding:8px 12px; font: inherit; font-size:13px; font-weight:600; cursor:pointer; }
+  button.case { background:#fff; color:var(--navy); border:1px solid #d7d2c6; }
+  button.case.on { background:var(--navy); color:#fff; }
+  button.go { background:var(--navy); color:#fff; margin-top:16px; padding:12px 16px; width:100%; border-radius:10px; font-size:15px; }
+  .result { background: var(--navy); color:#fff; border-radius:16px; padding:22px; min-height: 420px; }
+  .prob { font-size:72px; font-weight:800; letter-spacing:-.04em; line-height:1; margin: 18px 0 4px; }
+  .prob span { font-size:28px; }
+  .badge { display:inline-block; margin-top:8px; padding:6px 12px; border-radius:999px; font-weight:700; font-size:14px; }
+  .yes { background:#1E8449; }
+  .no { background:#C0392B; }
+  .meta { color:#c9d0d8; font-size:14px; line-height:1.5; margin-top:18px; }
+  .bar { height:8px; background:#1c3d63; border-radius:99px; margin-top:16px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--teal); width:0; }
+  table { width:100%; border-collapse:collapse; margin-top:18px; font-size:13px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #e4e0d6; }
+  th { color:var(--muted); font-weight:600; }
+  .note { color:#9aa3af; font-size:12px; margin-top:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker">DAY 22 · PHASE 7</div>
+      <h1>Loan prediction</h1>
+      <div class="sub">Same Logistic Regression as Phase 5. Unseen inputs. Probability, then a class.</div>
+    </div>
+  </header>
+  <div class="grid">
+    <section class="card">
+      <h2>Applicant</h2>
+      <div class="cases" id="cases"></div>
+      <div class="row2">
+        <div><label>Gender</label><select id="gender"><option value="1">Male</option><option value="0">Female</option></select></div>
+        <div><label>Married</label><select id="married"><option value="1">Yes</option><option value="0">No</option></select></div>
+        <div><label>Dependents</label><select id="dependents"><option>0</option><option>1</option><option>2</option><option>3</option></select></div>
+        <div><label>Education</label><select id="education"><option value="1">Graduate</option><option value="0">Not graduate</option></select></div>
+        <div><label>Self-employed</label><select id="self"><option value="0">No</option><option value="1">Yes</option></select></div>
+        <div><label>Credit history</label><select id="credit"><option value="1">Meets guidelines</option><option value="0">Does not</option></select></div>
+        <div><label>Property area</label><select id="area"><option value="semi">Semiurban</option><option value="urban">Urban</option><option value="rural">Rural</option></select></div>
+        <div><label>Term (months)</label><input id="term" type="number" value="360" /></div>
+        <div><label>Applicant income</label><input id="ainc" type="number" value="4583" /></div>
+        <div><label>Coapplicant income</label><input id="cinc" type="number" value="1508" /></div>
+        <div><label>Loan amount (thousands)</label><input id="loan" type="number" value="128" /></div>
+      </div>
+      <button class="go" id="go">Predict</button>
+      <p class="note">Inputs are encoded the same way as training: binaries 0/1, area with Rural as the reference, continuous columns scaled with the train-fold mean and scale.</p>
+    </section>
+    <section class="result" id="result">
+      <div class="kicker">P(APPROVE)</div>
+      <div class="prob" id="prob">—</div>
+      <div class="badge yes" id="badge">Waiting</div>
+      <div class="bar"><i id="fill"></i></div>
+      <div class="meta" id="meta">Enter an applicant, or load a test case.</div>
+    </section>
+  </div>
+  <section class="card" style="margin-top:18px">
+    <h2>Test cases</h2>
+    <table>
+      <thead><tr><th>Case</th><th>Profile</th><th>P(approve)</th><th>Class</th><th>Expected read</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </section>
+</div>
+<script>
+const MODEL = {"features":["Gender","Married","Dependents","Education","Self_Employed","ApplicantIncome","CoapplicantIncome","LoanAmount","Loan_Amount_Term","Credit_History","TotalIncome","Loan_Income_Ratio","Property_Semiurban","Property_Urban"],"cont":["ApplicantIncome","CoapplicantIncome","LoanAmount","Loan_Amount_Term","TotalIncome","Loan_Income_Ratio","Dependents"],"means":{"ApplicantIncome":5529.997963340123,"CoapplicantIncome":1569.5372708509165,"LoanAmount":146.52342158859472,"Loan_Amount_Term":341.74338085539716,"TotalIncome":7099.535234191038,"Loan_Income_Ratio":0.023587390971882123,"Dependents":0.7494908350305499},"scales":{"ApplicantIncome":6451.204811613159,"CoapplicantIncome":2786.681371494888,"LoanAmount":85.29904840716861,"Loan_Amount_Term":65.04160764484553,"TotalIncome":6685.93862748499,"Loan_Income_Ratio":0.008082600190249799,"Dependents":1.0012084070541567},"coef":{"Gender":-0.17682499860293519,"Married":0.47484169406079,"Dependents":0.11388041236391293,"Education":0.35086156039523003,"Self_Employed":-0.23743127504305228,"ApplicantIncome":-0.04115173751865131,"CoapplicantIncome":-0.16400197958707488,"LoanAmount":0.08391508734537839,"Loan_Amount_Term":0.010095340447799169,"Credit_History":3.142144886469628,"TotalIncome":-0.10806254570152041,"Loan_Income_Ratio":-0.16201874626011795,"Property_Semiurban":0.7027660779147687,"Property_Urban":0.11006683352992344},"intercept":-2.571979294939033,"threshold":0.5};
+const CASES = [
+  {id:"A", name:"Strong file", gender:1, married:1, dependents:1, education:1, self:0, credit:1, area:"semi", term:360, ainc:4583, cinc:1508, loan:128, expect:"Should approve. History + semiurban."},
+  {id:"B", name:"No credit file", gender:1, married:1, dependents:0, education:1, self:0, credit:0, area:"urban", term:360, ainc:6000, cinc:2000, loan:140, expect:"Should reject. History dominates."},
+  {id:"C", name:"Rural, thin file", gender:0, married:0, dependents:2, education:0, self:1, credit:1, area:"rural", term:360, ainc:2200, cinc:0, loan:90, expect:"Borderline yes. History present, rest weak."},
+  {id:"D", name:"High income, no history", gender:1, married:0, dependents:0, education:1, self:0, credit:0, area:"semi", term:360, ainc:18000, cinc:4000, loan:250, expect:"Still reject. Income cannot buy history."}
+];
+function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+function score(a){
+  const total = a.ainc + a.cinc;
+  const ratio = a.loan / (total || 1);
+  const raw = {
+    Gender:a.gender, Married:a.married, Dependents:a.dependents, Education:a.education, Self_Employed:a.self,
+    ApplicantIncome:a.ainc, CoapplicantIncome:a.cinc, LoanAmount:a.loan, Loan_Amount_Term:a.term,
+    Credit_History:a.credit, TotalIncome:total, Loan_Income_Ratio:ratio,
+    Property_Semiurban: a.area==="semi"?1:0, Property_Urban: a.area==="urban"?1:0
+  };
+  let z = MODEL.intercept;
+  for (const f of MODEL.features){
+    let x = raw[f];
+    if (MODEL.cont.includes(f)) x = (x - MODEL.means[f]) / MODEL.scales[f];
+    z += MODEL.coef[f] * x;
+  }
+  return sigmoid(z);
+}
+function readForm(){
+  return {
+    gender:+document.getElementById("gender").value,
+    married:+document.getElementById("married").value,
+    dependents:+document.getElementById("dependents").value,
+    education:+document.getElementById("education").value,
+    self:+document.getElementById("self").value,
+    credit:+document.getElementById("credit").value,
+    area:document.getElementById("area").value,
+    term:+document.getElementById("term").value,
+    ainc:+document.getElementById("ainc").value,
+    cinc:+document.getElementById("cinc").value,
+    loan:+document.getElementById("loan").value
+  };
+}
+function fill(a){
+  document.getElementById("gender").value=a.gender;
+  document.getElementById("married").value=a.married;
+  document.getElementById("dependents").value=a.dependents;
+  document.getElementById("education").value=a.education;
+  document.getElementById("self").value=a.self;
+  document.getElementById("credit").value=a.credit;
+  document.getElementById("area").value=a.area;
+  document.getElementById("term").value=a.term;
+  document.getElementById("ainc").value=a.ainc;
+  document.getElementById("cinc").value=a.cinc;
+  document.getElementById("loan").value=a.loan;
+}
+function show(p, note){
+  const pct = (p*100).toFixed(1);
+  document.getElementById("prob").innerHTML = pct + "<span>%</span>";
+  const yes = p >= 0.5;
+  const b = document.getElementById("badge");
+  b.textContent = yes ? "APPROVE" : "REJECT";
+  b.className = "badge " + (yes ? "yes" : "no");
+  document.getElementById("fill").style.width = pct + "%";
+  document.getElementById("meta").textContent = note;
+}
+const casesEl = document.getElementById("cases");
+CASES.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "case"; b.textContent = c.id + " · " + c.name;
+  b.onclick = () => { document.querySelectorAll(".case").forEach(x=>x.classList.remove("on")); b.classList.add("on"); fill(c); const p = score(c); show(p, c.expect + "  Threshold 0.50."); };
+  casesEl.appendChild(b);
+});
+document.getElementById("go").onclick = () => {
+  const a = readForm();
+  show(score(a), "Custom applicant. Class is 1 if P(approve) ≥ 0.50.");
+};
+const tb = document.getElementById("tbody");
+CASES.forEach(c => {
+  const p = score(c);
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td>${c.id} · ${c.name}</td><td>credit ${c.credit}, ${c.area}, income ${c.ainc}</td><td>${(p*100).toFixed(1)}%</td><td>${p>=0.5?"Approve":"Reject"}</td><td>${c.expect}</td>`;
+  tb.appendChild(tr);
+});
+const q = new URLSearchParams(location.search).get("case") || "A";
+const start = CASES.find(c => c.id===q) || CASES[0];
+fill(start); show(score(start), start.expect + "  Threshold 0.50.");
+document.querySelectorAll(".case")[CASES.indexOf(start)].classList.add("on");
+</script>
+</body>
+</html>
